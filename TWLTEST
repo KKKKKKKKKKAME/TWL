@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ถ่ายภาพพร้อมวันที่และเวลา</title>
+  <style>
+    video, canvas {
+      display: block;
+      margin: 10px auto;
+      border: 2px solid #ddd;
+    }
+    button {
+      display: block;
+      margin: 10px auto;
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center;">ถ่ายภาพพร้อมวันที่และเวลา</h1>
+  <video id="video" autoplay playsinline width="320" height="240"></video>
+  <button id="capture">ถ่ายภาพ</button>
+  <canvas id="canvas" width="320" height="240"></canvas>
+  <p id="message" style="text-align: center;"></p>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const captureButton = document.getElementById('capture');
+    const message = document.getElementById('message');
+
+    // เปิดกล้อง
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then((stream) => {
+        video.srcObject = stream;
+      })
+      .catch((err) => {
+        console.error("ไม่สามารถเปิดกล้องได้:", err);
+        message.innerText = "กรุณาอนุญาตการเข้าถึงกล้อง!";
+      });
+
+    // ฟังก์ชันจับภาพ
+    captureButton.addEventListener('click', () => {
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // ใส่วันที่และเวลา
+      const now = new Date();
+      const timestamp = now.toLocaleString(); // วันที่และเวลาในรูปแบบสากล
+      context.font = "16px Arial";
+      context.fillStyle = "yellow";
+      context.fillText(timestamp, 10, canvas.height - 20);
+
+      // บันทึกภาพพร้อม Timestamp
+      const image = canvas.toDataURL("image/png");
+      downloadImage(image, `photo_${now.toISOString()}.png`);
+    });
+
+    // ฟังก์ชันดาวน์โหลดภาพ
+    function downloadImage(dataUrl, filename) {
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = filename;
+      link.click();
+    }
+  </script>
+</body>
+</html>
