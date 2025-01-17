@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>ถ่ายภาพพร้อมวันที่และเวลา</title>
+  <title>ถ่ายภาพพร้อม Timestamp และ GPS</title>
   <style>
     video, canvas {
       display: block;
@@ -17,17 +17,18 @@
   </style>
 </head>
 <body>
-  <h1 style="text-align: center;">ถ่ายภาพพร้อมวันที่และเวลา</h1>
+  <h1 style="text-align: center;">ถ่ายภาพพร้อม Timestamp และ GPS</h1>
   <video id="video" autoplay playsinline width="320" height="240"></video>
   <button id="capture">ถ่ายภาพ</button>
   <canvas id="canvas" width="320" height="240"></canvas>
-  <p id="message" style="text-align: center;"></p>
+  <p id="message" style="text-align: center; color: red;"></p>
 
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const captureButton = document.getElementById('capture');
     const message = document.getElementById('message');
+    const shopLocation = { lat: 18.788474372122447, lon: 100.77790652254313 }; // พิกัดร้าน
 
     // เปิดกล้อง
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -41,27 +42,87 @@
 
     // ฟังก์ชันจับภาพ
     captureButton.addEventListener('click', () => {
-      const context = canvas.getContext('2d');
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      if (!navigator.geolocation) {
+        message.innerText = "อุปกรณ์ของคุณไม่รองรับการตรวจสอบ GPS!";
+        return;
+      }
 
-      // ใส่วันที่และเวลา
-      const now = new Date();
-      const timestamp = now.toLocaleString(); // วันที่และเวลาในรูปแบบสากล
-      context.font = "16px Arial";
-      context.fillStyle = "yellow";
-      context.fillText(timestamp, 10, canvas.height - 20);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          const distance = calculateDistance(lat, lon, shopLocation.lat, shopLocation.lon);
 
-      // บันทึกภาพพร้อม Timestamp
-      const image = canvas.toDataURL("image/png");
-      downloadImage(image, `photo_${now.toISOString()}.png`);
+          if (distance > 0.1) { // ตรวจสอบว่าห่างจากร้านเกิน 100 เมตร
+            message.innerText = "คุณอยู่นอกพื้นที่ร้าน!";
+            return;
+          }
+
+          // หากอยู่ในพื้นที่ร้าน
+          message.innerText = "";
+          const context = canvas.getContext('2d');
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          // ใส่ Timestamp และ GPS
+          const now = new Date();
+          const timestamp = now.toLocaleString();
+          context.font = "16px Arial";
+          context.fillStyle = "yellow";
+          context.fillText(timestamp, 10, canvas.height - 40);
+          context.fillText(`GPS: ${lat.toFixed(6)}, ${lon.toFixed(6)}`, 10, canvas.height - 20);
+
+          // บันทึกภาพพร้อมอัปโหลด
+          const image = canvas.toDataURL("image/png");
+          uploadToGoogleForm(image, timestamp, lat, lon);
+        },
+        (error) => {
+          console.error("ไม่สามารถเข้าถึง GPS ได้:", error);
+          message.innerText = "ไม่สามารถตรวจสอบ GPS ได้!";
+        }
+      );
     });
 
-    // ฟังก์ชันดาวน์โหลดภาพ
-    function downloadImage(dataUrl, filename) {
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = filename;
-      link.click();
+    // ฟังก์ชันคำนวณระยะทางระหว่างสองพิกัด
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // รัศมีของโลก (กิโลเมตร)
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c; // ระยะทางเป็นกิโลเมตร
+    }
+
+    // ฟังก์ชันอัปโหลดข้อมูลไปยัง Google Form
+    function uploadToGoogleForm(image, timestamp, lat, lon) {
+      const googleFormURL = "https://docs.google.com/forms/d/e/1FAIpQLScIRUWYgD7PIHcnDaBmzIXvVlFhQWUeivIzCmvCq58KDmZLmA/viewform?usp=sharing"; // URL ของ Google Form
+      const imageField = "entry.790235125"; // รหัสฟิลด์ของภาพ
+      const timestampField = "entry.1741820912"; // รหัสฟิลด์ของเวลา
+      const latField = "entry.473228842"; // รหัสฟิลด์ละติจูด
+      const lonField = "entry.2074063589"; // รหัสฟิลด์ลองจิจูด
+
+      const formData = new FormData();
+      formData.append(imageField, image);
+      formData.append(timestampField, timestamp);
+      formData.append(latField, lat);
+      formData.append(lonField, lon);
+
+      fetch(googleFormURL, {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => {
+        if (response.ok) {
+          message.innerText = "บันทึกข้อมูลสำเร็จ!";
+        } else {
+          message.innerText = "เกิดข้อผิดพลาดในการบันทึกข้อมูล!";
+        }
+      })
+      .catch((error) => {
+        console.error("ข้อผิดพลาดในการอัปโหลด:", error);
+        message.innerText = "ไม่สามารถเชื่อมต่อกับ Google Form ได้!";
+      });
     }
   </script>
 </body>
