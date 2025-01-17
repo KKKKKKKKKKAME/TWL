@@ -97,21 +97,19 @@
     // ฟังก์ชันอัปโหลดข้อมูลไปยัง Google Form
     function uploadToGoogleForm(image, timestamp, lat, lon) {
       // ส่งข้อมูลไปยัง Google Apps Script เพื่ออัปโหลดไปยัง Google Drive
-      fetch('https://script.google.com/macros/s/AKfycbxrsFyqw1pTjMo5H50yfCTcjd9-_iMVQ_yY_eqaIJ3W4adqxQOfQo7kzO6M-sedRmeO/exec', {
+      const formData = new URLSearchParams();
+      formData.append('image', image);
+      formData.append('timestamp', timestamp);
+      formData.append('lat', lat);
+      formData.append('lon', lon);
+
+      fetch('https://script.google.com/macros/s/AKfycbyYppBQzlx6I-6vXDUTdR-jTVsF8y9DTjpxKjAlWwp9DxWmNoa9lHYIBtDQGU5G1dlO/exec', {
         method: 'POST',
-        body: JSON.stringify({
-          image: image, 
-          timestamp: timestamp, 
-          lat: lat, 
-          lon: lon
-        }),
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        body: formData
       })
-      .then(response => response.json())
+      .then(response => response.text())
       .then(data => {
-        if (data.success) {
+        if (data === 'สำเร็จ') {
           message.innerText = "บันทึกข้อมูลสำเร็จ!";
         } else {
           message.innerText = "เกิดข้อผิดพลาดในการบันทึกข้อมูล!";
