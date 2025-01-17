@@ -96,30 +96,28 @@
 
     // ฟังก์ชันอัปโหลดข้อมูลไปยัง Google Form
     function uploadToGoogleForm(image, timestamp, lat, lon) {
-      const googleFormURL = "https://docs.google.com/forms/d/e/1FAIpQLScIRUWYgD7PIHcnDaBmzIXvVlFhQWUeivIzCmvCq58KDmZLmA/formResponse"; // URL ของ Google Form
-      const imageField = "entry.790235125"; // รหัสฟิลด์ของภาพ
-      const timestampField = "entry.1741820912"; // รหัสฟิลด์ของเวลา
-      const latField = "entry.473228842"; // รหัสฟิลด์ละติจูด
-      const lonField = "entry.2074063589"; // รหัสฟิลด์ลองจิจูด
-
-      const formData = new FormData();
-      formData.append(imageField, image);
-      formData.append(timestampField, timestamp);
-      formData.append(latField, lat);
-      formData.append(lonField, lon);
-
-      fetch(googleFormURL, {
+      // ส่งข้อมูลไปยัง Google Apps Script เพื่ออัปโหลดไปยัง Google Drive
+      fetch('https://script.google.com/macros/s/AKfycbwhBO17A8QKyZMrTnpEOrIn7F5ukgd87SbOyOhjVZ3zz-k2oic0XypEnslIm6eOlP8N/exec', {
         method: 'POST',
-        body: formData
+        body: JSON.stringify({
+          image: image, 
+          timestamp: timestamp, 
+          lat: lat, 
+          lon: lon
+        }),
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
-      .then(response => {
-        if (response.ok) {
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
           message.innerText = "บันทึกข้อมูลสำเร็จ!";
         } else {
           message.innerText = "เกิดข้อผิดพลาดในการบันทึกข้อมูล!";
         }
       })
-      .catch((error) => {
+      .catch(error => {
         console.error("ข้อผิดพลาดในการอัปโหลด:", error);
         message.innerText = "ไม่สามารถเชื่อมต่อกับ Google Form ได้!";
       });
