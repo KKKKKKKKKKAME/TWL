@@ -73,7 +73,7 @@
 
           // บันทึกภาพพร้อมอัปโหลด
           const image = canvas.toDataURL("image/png");
-          uploadToGoogleForm(image, timestamp, lat, lon);
+          uploadToGoogleDrive(image, timestamp, lat, lon);
         },
         (error) => {
           console.error("ไม่สามารถเข้าถึง GPS ได้:", error);
@@ -94,31 +94,46 @@
       return R * c; // ระยะทางเป็นกิโลเมตร
     }
 
-    // ฟังก์ชันอัปโหลดข้อมูลไปยัง Google Form
-    function uploadToGoogleForm(image, timestamp, lat, lon) {
-      // ส่งข้อมูลไปยัง Google Apps Script เพื่ออัปโหลดไปยัง Google Drive
+    // ฟังก์ชันอัปโหลดข้อมูลไปยัง Google Drive
+    function uploadToGoogleDrive(image, timestamp, lat, lon) {
       const formData = new URLSearchParams();
       formData.append('image', image);
       formData.append('timestamp', timestamp);
       formData.append('lat', lat);
       formData.append('lon', lon);
 
-      fetch('https://script.google.com/macros/s/AKfycbyYppBQzlx6I-6vXDUTdR-jTVsF8y9DTjpxKjAlWwp9DxWmNoa9lHYIBtDQGU5G1dlO/exec', {
+      fetch('https://script.google.com/macros/s/AKfycbxttWWB7b-k3J580pH1shIIGW1aaEYznBY7sQIyAdc-GfoTfmG_6mWLn_qoKJk_oWI2/exec', {
         method: 'POST',
         body: formData
       })
-      .then(response => response.text())
+      .then(response => response.json())
       .then(data => {
-        if (data === 'สำเร็จ') {
-          message.innerText = "บันทึกข้อมูลสำเร็จ!";
+        if (data.status === 'success') {
+          redirectToForm(data.fileUrl, timestamp, lat, lon);
         } else {
-          message.innerText = "เกิดข้อผิดพลาดในการบันทึกข้อมูล!";
+          message.innerText = "เกิดข้อผิดพลาดในการอัปโหลด!";
         }
       })
       .catch(error => {
         console.error("ข้อผิดพลาดในการอัปโหลด:", error);
-        message.innerText = "ไม่สามารถเชื่อมต่อกับ Google Form ได้!";
+        message.innerText = "ไม่สามารถเชื่อมต่อกับ Google Drive ได้!";
       });
+    }
+
+    // ฟังก์ชัน Redirect ไปที่ Google Form
+    function redirectToForm(fileUrl, timestamp, lat, lon) {
+      const formUrl = 'https://docs.google.com/forms/d/1RW_jVu5ibIqieAmoASXdhrgQOZ7glEsoSkqdzDHe0rw/formResponse';
+      const formData = {
+        'entry.1741820912': timestamp,  // กรอก Timestamp
+        'entry.473228842': lat,       // กรอกละติจูด
+        'entry.12131415': lon,      // กรอกลองจิจูด
+        'entry.2074063589': fileUrl   // กรอก URL ของไฟล์ที่อัปโหลด
+      };
+
+      const formParams = new URLSearchParams(formData).toString();
+      const formFullUrl = formUrl + '?' + formParams;
+      
+      window.location.href = formFullUrl;  // Redirect ไป Google Form
     }
   </script>
 </body>
